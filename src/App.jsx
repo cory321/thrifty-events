@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, MapPin, X, Check, ArrowDown, ArrowRight, ArrowLeft, TrendingUp, Zap, RotateCcw, ZoomIn, ZoomOut, Eye, EyeOff } from 'lucide-react';
+import { Search, MapPin, X, Check, ArrowDown, ArrowRight, ArrowLeft, TrendingUp, Zap, RotateCcw, ZoomIn, ZoomOut, Eye, EyeOff, Menu } from 'lucide-react';
 
 const TIER_DETAILS = {
   S: { id: 'S', name: 'Standard (10×10)', price: 300, dayPrice: 150,
@@ -107,6 +107,8 @@ export default function App() {
   const [dragOverBooth, setDragOverBooth] = useState(null);
   const [justDropped, setJustDropped] = useState(null);
   const [showEmpty, setShowEmpty] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const hasTouched = useRef(false);
   const floorRef = useRef(null);
 
   const MIN_ZOOM = 0.8;
@@ -195,19 +197,31 @@ export default function App() {
     let initZoom = null;
     let initMid = null;
     let initPan = null;
+    let touchPan = null;
 
     const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
     const mid = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
 
     const onTouchStart = (e) => {
+      hasTouched.current = true;
       if (e.touches.length === 2) {
         e.preventDefault();
+        touchPan = null;
         initDist = dist(e.touches[0], e.touches[1]);
         initZoom = viewRef.current.zoom;
         const rect = el.getBoundingClientRect();
         const m = mid(e.touches[0], e.touches[1]);
         initMid = { x: m.x - rect.left, y: m.y - rect.top };
         initPan = { x: viewRef.current.panX, y: viewRef.current.panY };
+      } else if (e.touches.length === 1) {
+        if (e.target.closest('[data-booth]')) return;
+        touchPan = {
+          startX: e.touches[0].clientX,
+          startY: e.touches[0].clientY,
+          origPanX: viewRef.current.panX,
+          origPanY: viewRef.current.panY,
+          moved: false,
+        };
       }
     };
 
@@ -223,10 +237,25 @@ export default function App() {
         v.panX = initMid.x - ratio * (initMid.x - initPan.x);
         v.panY = initMid.y - ratio * (initMid.y - initPan.y);
         forceViewUpdate();
+      } else if (e.touches.length === 1 && touchPan) {
+        const dx = e.touches[0].clientX - touchPan.startX;
+        const dy = e.touches[0].clientY - touchPan.startY;
+        if (!touchPan.moved && Math.hypot(dx, dy) > 8) {
+          touchPan.moved = true;
+        }
+        if (touchPan.moved) {
+          e.preventDefault();
+          viewRef.current.panX = touchPan.origPanX + dx;
+          viewRef.current.panY = touchPan.origPanY + dy;
+          forceViewUpdate();
+        }
       }
     };
 
-    const onTouchEnd = () => { initDist = null; };
+    const onTouchEnd = () => {
+      initDist = null;
+      touchPan = null;
+    };
 
     el.addEventListener('touchstart', onTouchStart, { passive: false });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
@@ -338,6 +367,7 @@ export default function App() {
         className={`flex-1 overflow-hidden border-r-4 border-black relative select-none
           ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}
         `}
+        style={{ touchAction: 'none' }}
         onMouseDown={onPanMouseDown}
         onMouseMove={onPanMouseMove}
         onMouseUp={onPanMouseUp}
@@ -347,25 +377,36 @@ export default function App() {
         <div className="absolute top-3 left-3 z-30 flex flex-col gap-1.5">
           <button
             onClick={() => zoomBy(1.3)}
-            className="bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-1.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+            className="bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-2.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
-            <ZoomIn size={16} strokeWidth={3} />
+            <ZoomIn size={20} strokeWidth={3} />
           </button>
           <button
             onClick={() => zoomBy(0.77)}
-            className="bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-1.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+            className="bg-white border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-2.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
           >
-            <ZoomOut size={16} strokeWidth={3} />
+            <ZoomOut size={20} strokeWidth={3} />
           </button>
           {userZoom !== 1 && (
             <button
               onClick={resetZoom}
-              className="bg-lime-300 border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-1.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all"
+              className="bg-lime-300 border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-2.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
               title="Reset zoom"
             >
-              <RotateCcw size={16} strokeWidth={3} />
+              <RotateCcw size={20} strokeWidth={3} />
             </button>
           )}
+        </div>
+
+        {/* Sidebar toggle */}
+        <div className="absolute top-3 right-3 z-30">
+          <button
+            onClick={() => setSidebarOpen(s => !s)}
+            className="bg-lime-300 border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-2.5 active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-2"
+          >
+            <Menu size={20} strokeWidth={3} />
+            <span className="text-[10px] font-black uppercase tracking-wider">{sidebarOpen ? 'Hide' : 'Vendors'}</span>
+          </button>
         </div>
 
         {/* Empty booth toggle + zoom indicator */}
@@ -561,8 +602,8 @@ export default function App() {
         </div>
       )}
 
-      {/* TOOLTIP */}
-      {hoveredBooth && !activePopover && (
+      {/* TOOLTIP (hidden on touch devices) */}
+      {hoveredBooth && !activePopover && !hasTouched.current && (
         <BoothTooltip
           booth={INITIAL_BOOTHS.find(b => b.id === hoveredBooth)}
           vendor={INITIAL_VENDORS.find(v => v.id === assignments[hoveredBooth])}
@@ -570,6 +611,7 @@ export default function App() {
       )}
 
       {/* SIDEBAR */}
+      <div className={`shrink-0 overflow-hidden transition-all duration-300 ${sidebarOpen ? 'w-[420px]' : 'w-0'}`}>
       <div className="w-[420px] bg-white flex flex-col h-full z-30">
         <div className="p-6 border-b-4 border-black bg-lime-300 relative overflow-hidden">
           <div className="relative z-10">
@@ -653,6 +695,7 @@ export default function App() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
