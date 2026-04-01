@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, MapPin, X, Check, ArrowDown, ArrowRight, ArrowLeft, TrendingUp, Zap, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search, MapPin, X, Check, ArrowDown, ArrowRight, ArrowLeft, TrendingUp, Zap, RotateCcw, ZoomIn, ZoomOut, Eye, EyeOff } from 'lucide-react';
 
 const TIER_DETAILS = {
   S: { id: 'S', name: 'Standard (10×10)', price: 300, dayPrice: 150,
@@ -106,6 +106,7 @@ export default function App() {
   const [activePopover, setActivePopover] = useState(null);
   const [dragOverBooth, setDragOverBooth] = useState(null);
   const [justDropped, setJustDropped] = useState(null);
+  const [showEmpty, setShowEmpty] = useState(true);
   const floorRef = useRef(null);
 
   const MIN_ZOOM = 0.8;
@@ -367,9 +368,21 @@ export default function App() {
           )}
         </div>
 
-        {/* Zoom level indicator */}
-        <div className="absolute bottom-3 left-3 z-30 bg-white/80 border border-black/20 rounded-md px-2 py-1">
-          <span className="text-[9px] font-black font-mono text-black/50 uppercase">{Math.round(userZoom * 100)}%</span>
+        {/* Empty booth toggle + zoom indicator */}
+        <div className="absolute bottom-3 left-3 z-30 flex items-center gap-2">
+          <button
+            onClick={() => setShowEmpty(s => !s)}
+            className={`flex items-center gap-1.5 border-2 border-black rounded-lg shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-2.5 py-1.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all
+              ${showEmpty ? 'bg-white' : 'bg-pink-300'}
+            `}
+            title={showEmpty ? 'Hide empty booths' : 'Show empty booths'}
+          >
+            {showEmpty ? <EyeOff size={12} strokeWidth={3} /> : <Eye size={12} strokeWidth={3} />}
+            <span className="text-[9px] font-black uppercase tracking-wider">{showEmpty ? 'Hide Empty' : 'Show Empty'}</span>
+          </button>
+          <div className="bg-white/80 border border-black/20 rounded-md px-2 py-1">
+            <span className="text-[9px] font-black font-mono text-black/50 uppercase">{Math.round(userZoom * 100)}%</span>
+          </div>
         </div>
 
         <div
@@ -435,6 +448,7 @@ export default function App() {
               const tier = TIER_DETAILS[booth.tier];
               const assignedVendorId = assignments[booth.id];
               const vendor = assignedVendorId ? INITIAL_VENDORS.find(v => v.id === assignedVendorId) : null;
+              if (!showEmpty && !vendor) return null;
               const isActive = activePopover?.boothId === booth.id;
               const isDragTarget = dragOverBooth === booth.id;
               const isSwapTarget = isDragTarget && !!vendor;
